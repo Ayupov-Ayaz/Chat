@@ -23,13 +23,10 @@ var (
 // Клиент - посредник между websocket подключением и server
 type client struct {
 	server *Server
-
 	// the websocket connection
 	conn *websocket.Conn
-
 	// Буфферизированный канал для отправки сообщений
 	send chan[]byte
-
 	logger *zap.Logger
 }
 

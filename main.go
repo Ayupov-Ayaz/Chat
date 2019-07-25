@@ -5,7 +5,10 @@
 package main
 
 import (
+	"chat/configs"
+	"chat/core"
 	"flag"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 )
@@ -22,9 +25,33 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	http.ServeFile(w, r, "home.html")
+	// front
+	http.ServeFile(w, r, "public/index.html")
 }
 
 func main() {
+	flag.Parse()
+	server := core.NewServer()
+	go server.Run()
 
+	http.HandleFunc("/", serveHome)
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(server, w, r)
+	})
+	if err := http.ListenAndServe(*addr, nil); err != nil {
+		zap.L().Named("main").Error("lister and server failed", zap.Error(err))
+	}
+}
+
+func serveWs(server *core.Server, w http.ResponseWriter, r *http.Request) {
+	l := zap.L().Named("serverWsHandler")
+	conn, err := configs.WsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		l.Error("ws upgrade failed", zap.Error(err))
+		return
+	}
+	client := core.MakeClient(server, conn)
+	client.Subscribe()
+	go client.WritePump()
+	go client.ReadPump()
 }

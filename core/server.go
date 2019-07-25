@@ -16,10 +16,10 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		broadcast: make(chan []byte),
-		subscribe: make(chan *client),
+		broadcast: 	 make(chan []byte),
+		subscribe: 	 make(chan *client),
 		unsubscribe: make(chan *client),
-		clients: make(map[*client] bool),
+		clients: 	 make(map[*client] bool),
 	}
 }
 
