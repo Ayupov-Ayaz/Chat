@@ -33,7 +33,7 @@ var upgrader = websocket.Upgrader{
 
 // Клиент - посредник между websocket подключением и server
 type Client struct {
-	// todo: hub
+	server *Server
 
 	// the websocket connection
 	conn *websocket.Conn
@@ -53,7 +53,7 @@ func (c *Client) readPump() {
 	l := c.logger.Named("readPump")
 	//
 	defer func() {
-		// todo: c.server.unregister <- c
+		c.server.unsubscribe <- c
 		if err := c.conn.Close(); err != nil {
 			l.Warn("Не удалось закрыть websocket подключение, from readPump!", zap.Error(err))
 		}
@@ -83,8 +83,8 @@ func (c *Client) readPump() {
 		}
 		// убираем лишние пробелы, меняем символ переноса строки на пробел
 		message = bytes.TrimSpace(bytes.Replace(message, newLine, space, -1))
-		// передает в server
-		// todo: c.server.broadcast <- message
+		// передает сообщение в server
+		c.server.broadcast <- message
 	}
 }
 
