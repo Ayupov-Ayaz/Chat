@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"chat/configs"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 	"time"
@@ -14,22 +15,10 @@ const (
 	// Время на чтение сообщения от коллеги
 	pongWait = 60 * time.Second
 
-	// Отправка ping запроса для проверки доступности коллеги, это значение должно быть меньше, чем pongWait
-	pingWait = (pongWait * 9 ) / 10
-
-	// Максимальный размер сообщения доступный для получения от коллеги
-	maxMessageSize = 512
-)
-
 var (
 	newLine = []byte{'\n'}
 	space 	= []byte{' '}
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize: 1024,
-	WriteBufferSize: 1024,
-}
 
 // Клиент - посредник между websocket подключением и server
 type Client struct {
@@ -59,14 +48,14 @@ func (c *Client) readPump() {
 		}
 	}()
 
-	c.conn.SetReadLimit(maxMessageSize)
+	c.conn.SetReadLimit(configs.MaxMessageSize)
 
-	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+	if err := c.conn.SetReadDeadline(time.Now().Add(configs.PongWait)); err != nil {
 		l.Warn("Не удалось установить крайний срок чтения сообщения", zap.Error(err))
 	}
 
 	c.conn.SetPongHandler(func(appData string) error {
-		if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		if err := c.conn.SetReadDeadline(time.Now().Add(configs.PongWait)); err != nil {
 			l.Warn("Не удалось установить крайний срок чтения сообщения в pongHandler", zap.Error(err))
 			return err
 		}
@@ -95,7 +84,7 @@ func (c *Client) readPump() {
 // который будет передавать все записи из горутины
 func (c *Client) writePump() {
 	l := c.logger.Named("writePump")
-	ticker := time.NewTimer(pingWait)
+	ticker := time.NewTimer(configs.PingWait)
 
 	defer func() {
 		ticker.Stop()
@@ -107,7 +96,7 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <- c.send:
-			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+			if err := c.conn.SetWriteDeadline(time.Now().Add(configs.WriteWait)); err != nil {
 				l.Warn("Не удалось установить крайний срок чтения сообщения в writePong", zap.Error(err))
 			}
 			if !ok {
@@ -132,7 +121,7 @@ func (c *Client) writePump() {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			c.conn.SetWriteDeadline(time.Now().Add(configs.WriteWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				l.Warn("")
 				return
@@ -141,3 +130,4 @@ func (c *Client) writePump() {
 		}
 	}
 }
+
