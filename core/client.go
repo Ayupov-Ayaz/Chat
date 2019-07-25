@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-const (
-	// Время для написания сообщения коллеге
-	writeWait = 10 * time.Second
-
-	// Время на чтение сообщения от коллеги
-	pongWait = 60 * time.Second
+type Client interface {
+	Subscribe()
+	Unsubscribe()
+	WritePump()
+	ReadPump()
+}
 
 var (
 	newLine = []byte{'\n'}
@@ -21,7 +21,7 @@ var (
 )
 
 // Клиент - посредник между websocket подключением и server
-type Client struct {
+type client struct {
 	server *Server
 
 	// the websocket connection
@@ -30,15 +30,33 @@ type Client struct {
 	// Буфферизированный канал для отправки сообщений
 	send chan[]byte
 
-	logger zap.Logger
+	logger *zap.Logger
 }
 
-// readPump - передает сообщения из websocket подключения серверу
+// подписка
+func (c *client) Subscribe() {
+	c.server.subscribe <- c
+}
+// отписка
+func (c *client) Unsubscribe() {
+	c.server.unsubscribe <- c
+}
+
+func MakeClient(server *Server, conn *websocket.Conn) Client {
+	return &client{
+		server: server,
+		conn: conn,
+		send: make(chan []byte, 256),
+		logger: zap.L().Named("client"),
+	}
+}
+
+// ReadPump - передает сообщения из websocket подключения серверу
 //
 // Приложение запускает readPump в отдельной горутине
 // По каждому соединение будет реализован не более одного считывателя
 // который будет читать из программы
-func (c *Client) readPump() {
+func (c *client) ReadPump() {
 	l := c.logger.Named("readPump")
 	//
 	defer func() {
@@ -77,12 +95,12 @@ func (c *Client) readPump() {
 	}
 }
 
-// writePump - принимает сообщения из сервера и передает их websocket подключению
+// WritePump - принимает сообщения из сервера и передает их websocket подключению
 //
 // Приложение запускает writePump в отдельной горутине
 // По каждому соединение будет реализован не более одной функции writePump
 // который будет передавать все записи из горутины
-func (c *Client) writePump() {
+func (c *client) WritePump() {
 	l := c.logger.Named("writePump")
 	ticker := time.NewTimer(configs.PingWait)
 

@@ -2,24 +2,24 @@ package core
 
 type Server struct {
 	// Зарегистрированные клиенты
-	clients map[*Client]bool
+	clients map[*client]bool
 
 	// входящие сообщения от клиентов
 	broadcast chan []byte
 
 	// Подписка от клиентов
-	subscribe chan *Client
+	subscribe chan *client
 
 	// Отписка от клиента
-	unsubscribe chan *Client
+	unsubscribe chan *client
 }
 
 func NewServer() *Server {
 	return &Server{
 		broadcast: make(chan []byte),
-		subscribe: make(chan *Client),
-		unsubscribe: make(chan *Client),
-		clients: make(map[*Client]bool),
+		subscribe: make(chan *client),
+		unsubscribe: make(chan *client),
+		clients: make(map[*client] bool),
 	}
 }
 
